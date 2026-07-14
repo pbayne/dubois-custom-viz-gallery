@@ -24,6 +24,21 @@ native (out-of-the-box) widget type — all laid out in a clean 2-column grid.
 ### Advanced & Layered
 ![Advanced & Layered](docs/screenshots/advanced.png)
 
+### Themed Dashboard Examples
+
+The gallery's theming system (`uiSettings.theme` + Vega-Lite `config`) can reskin
+the entire dashboard. These example themes show the same charts with completely
+different palettes:
+
+| Theme | Screenshot |
+|-------|------------|
+| 🖥️ The Matrix | ![Matrix](docs/screenshots/theme_matrix.png) |
+| 🦄 My Little Pony | ![MLP](docs/screenshots/theme_my_little_pony.png) |
+| 🦁 The Lion King | ![Lion King](docs/screenshots/theme_lion_king.png) |
+| 🍄 The Smurfs | ![Smurfs](docs/screenshots/theme_smurfs.png) |
+| 💅 Barbie | ![Barbie](docs/screenshots/theme_barbie.png) |
+| 🧽 SpongeBob | ![SpongeBob](docs/screenshots/theme_spongebob.png) |
+
 ## What's here
 
 | Path | Description |
