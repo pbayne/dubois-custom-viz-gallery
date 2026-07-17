@@ -13,7 +13,7 @@
 # Re-running is idempotent: it updates the same dashboards in this workspace.
 set -euo pipefail
 
-PROFILE=""; WAREHOUSE=""; SCHEMA="pb_demo.custom_gallery"; PARENT_PATH=""; MODE="dark"
+PROFILE=""; WAREHOUSE=""; SCHEMA=""; PARENT_PATH=""; MODE="dark"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --profile)     PROFILE="$2"; shift 2 ;;
@@ -24,7 +24,44 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
-[[ -z "$PROFILE" || -z "$WAREHOUSE" ]] && { echo "error: --profile and --warehouse are required" >&2; exit 2; }
+[[ -z "$PROFILE" ]] && { echo "error: --profile is required" >&2; exit 2; }
+
+# Auto-detect warehouse if not provided: pick the first RUNNING SQL warehouse,
+# or the first one available (will auto-start on query).
+if [[ -z "$WAREHOUSE" ]]; then
+  echo "==> auto-detecting SQL warehouse..."
+  WAREHOUSE="$(databricks api get /api/2.0/sql/warehouses -p "$PROFILE" \
+    | python3 -c '
+import sys, json
+whs = json.loads(sys.stdin.read()).get("warehouses", [])
+running = [w for w in whs if w["state"] == "RUNNING"]
+pick = running[0] if running else (whs[0] if whs else None)
+if pick:
+    print(pick["id"])
+else:
+    print("")
+')"
+  [[ -z "$WAREHOUSE" ]] && { echo "error: no SQL warehouses found. Create one or pass --warehouse" >&2; exit 2; }
+  echo "    using warehouse: ${WAREHOUSE}"
+fi
+
+# Auto-detect schema if not provided: use the first MANAGED_CATALOG + "custom_gallery"
+if [[ -z "$SCHEMA" ]]; then
+  echo "==> auto-detecting catalog..."
+  AUTO_CATALOG="$(databricks api get /api/2.1/unity-catalog/catalogs -p "$PROFILE" \
+    | python3 -c '
+import sys, json
+cats = json.loads(sys.stdin.read()).get("catalogs", [])
+managed = [c for c in cats if c.get("catalog_type") == "MANAGED_CATALOG"]
+if managed:
+    print(managed[0]["name"])
+else:
+    print("")
+')"
+  [[ -z "$AUTO_CATALOG" ]] && { echo "error: no managed catalogs found. Pass --schema catalog.schema" >&2; exit 2; }
+  SCHEMA="${AUTO_CATALOG}.custom_gallery"
+  echo "    using schema: ${SCHEMA}"
+fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CATALOG="${SCHEMA%%.*}"; SCHEMA_ONLY="${SCHEMA#*.}"

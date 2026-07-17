@@ -110,11 +110,14 @@ maps still work as custom-viz using the `albersUsa` projection.
 ### Install (any workspace)
 
 ```bash
-./install.sh --profile <cli-profile> --warehouse <warehouse-id>
+./install.sh --profile <cli-profile>
 ```
 
-Options:
-- `--schema <catalog.schema>` — target schema (default: `pb_demo.custom_gallery`)
+That's it. The script auto-detects a SQL warehouse and catalog from your workspace.
+
+Options (all optional):
+- `--warehouse <id>` — SQL warehouse (default: auto-picks first running or available)
+- `--schema <catalog.schema>` — target schema (default: auto-picks first managed catalog + `custom_gallery`)
 - `--parent-path /Users/<you>` — workspace folder for dashboards (default: calling user's home)
 - `--mode dark|light` — Du Bois palette mode (default: `dark`)
 
