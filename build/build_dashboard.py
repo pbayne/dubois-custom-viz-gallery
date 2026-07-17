@@ -32,6 +32,7 @@ TAB_TITLES = {
     "heatmap_matrix": "Heatmap & Matrix", "ranking": "Ranking",
     "tables": "Tables & Text", "indicators": "Indicators & Dials",
     "maps": "Maps", "advanced": "Advanced & Layered",
+    "extreme_viz": "Extreme & Experimental",
     "native_ootb": "Out-of-the-Box Charts",
 }
 
@@ -41,7 +42,7 @@ GROUPS = [
     ("Du Bois Custom-Viz Gallery I — Core Charts",
      ["bar_column", "line_area", "distributions", "correlation", "part_to_whole", "radial"]),
     ("Du Bois Custom-Viz Gallery II — Composite, Indicators & Maps",
-     ["heatmap_matrix", "ranking", "tables", "indicators", "advanced", "maps"]),
+     ["heatmap_matrix", "ranking", "tables", "indicators", "advanced", "maps", "extreme_viz"]),
     ("Du Bois AI-BI Out-of-the-Box Charts (Native Widgets)",
      ["native_ootb"]),
 ]

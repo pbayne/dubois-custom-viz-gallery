@@ -1,6 +1,6 @@
 # Du Bois Custom-Viz Gallery
 
-A comprehensive **Databricks AI/BI dashboard** gallery showcasing ~171 chart types
+A comprehensive **Databricks AI/BI dashboard** gallery showcasing **228 chart types**
 styled with the [Du Bois design system](https://www.databricks.com/blog/introducing-du-bois)
 palette. It covers essentially the entire *feasible*
 [Vega-Lite example gallery](https://vega.github.io/vega-lite/examples/) as
@@ -52,14 +52,14 @@ different palettes:
 
 ## The dashboards
 
-Three dashboards, ~171 charts total, deployed in a **2-column layout** (`w=3+w=3`
+Three dashboards, **228 charts** total, deployed in a **2-column layout** (`w=3+w=3`
 on the 6-column AI/BI grid):
 
 | Dashboard | Tabs | Charts | Description |
 |-----------|------|--------|-------------|
 | **Gallery I — Core Charts** | 6 | 109 | Bar & Column, Line & Area, Distributions, Correlation & Scatter, Part-to-Whole, Radial |
-| **Gallery II — Composite** | 6 | 62 | Heatmap & Matrix, Ranking, Tables & Text, Indicators & Dials, Advanced & Layered, Maps |
-| **Out-of-the-Box (Native)** | 1 | 21 | Every native AI/BI widget type: counter, bar, line, area, pie, scatter, heatmap, box, histogram, table, symbol-map, choropleth-map, sankey, gantt, funnel, waterfall, combo, pivot, forecast-line |
+| **Gallery II — Composite** | 7 | 84 | Heatmap & Matrix, Ranking, Tables & Text, Indicators & Dials, Advanced & Layered, Maps, Extreme & Experimental |
+| **Out-of-the-Box (Native)** | 1 | 35 | Every native AI/BI widget type + variants: counter (plain, conditional, target), bar (vertical, horizontal, stacked, grouped), line (multi, points), area (stacked, normalized), pie, donut, scatter (basic, bubble), heatmap, box, histogram, table (basic, formatted), symbol-map, choropleth-map, sankey, gantt, funnel, waterfall, combo, pivot (basic, 6-level, column hierarchy), forecast-line, filter (single, multi, date-range) |
 
 ### Chart coverage by tab
 
@@ -75,8 +75,9 @@ on the 6-column AI/BI grid):
 | II | Ranking | 7 | Top-N bars, lollipop, dot plot, labels, sorted, diverging |
 | II | Tables & Text | 7 | Heatmap-table, KPI big-number, bar-in-table, colored-text, text grid, mosaic |
 | II | Indicators & Dials | 7 | Bullet, speedometer dial (needle), progress ring, linear meter, KPI + delta, sparkline, stat-row |
-| II | Advanced & Layered | 26 | Candlestick, waterfall, bar+line, ranged dot, error bars/CI band, slope, annotation, diff-from-avg, top-K |
+| II | Advanced & Layered | 38 | Candlestick, waterfall, bar+line, ranged dot, error bars/CI band, slope, annotation, diff-from-avg, top-K, ternary, diverging, wind vector, weekly weather, dual axis, gapminder bubble, CO2 overlay, beeswarm, spiral, periodic table, radial network, emoji scatter |
 | II | Maps | 6 | Airport dot / per-state bubble / region symbol maps + filled California-county and LA-neighborhood choropleths |
+| II | Extreme & Experimental | 10 | Internet users spiral, Du Bois fan chart, word cloud, QR-code grid, particle trails, marimekko, bump chart, waffle chart, connected scatterplot, isotype pictogram |
 
 ### Native OOTB vs Custom Viz
 
@@ -95,7 +96,7 @@ maps still work as custom-viz using the `albersUsa` projection.
 
 - **Interactive** (brush, pan/zoom, cross-filter, selection) — a published widget is static
 - **Faceting / Trellis / Repeat / Concatenation** — multi-view specs don't size in container widgets
-- 2 charts excluded via `EXCLUDE_IDS` because they didn't render cleanly
+- 2 charts excluded via `EXCLUDE_IDS` (relative frequency histogram, isotype dot plot)
 
 ## Quick start
 

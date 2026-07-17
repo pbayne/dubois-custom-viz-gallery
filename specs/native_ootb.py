@@ -240,6 +240,60 @@ CHARTS = [
                               "cell": {"type": "single-cell", "fieldName": "sum(avg_mpg)"}}},
      "query_fields": [_n("origin"), _n("cylinders"), _n("sum(avg_mpg)", "SUM(`avg_mpg`)")]},
 
+    # --- pivot (6-level deep hierarchy): year > quarter > month > region > product > sku ---
+    {"id": "n_pivot_6level", "title": "6-Level Pivot — Year > Qtr > Month > Region > Product > SKU", "w": 6, "h": 12,
+     "sql": """SELECT
+  CAST(year AS STRING) AS year, quarter, month, region, product, sku,
+  CAST(revenue AS DOUBLE) AS revenue, CAST(deals AS DOUBLE) AS deals
+FROM (
+  SELECT 2024 as year,'Q1' as quarter,'Jan' as month,'East' as region,'Alpha' as product,'A-100' as sku,85000 as revenue,25 as deals
+  UNION ALL SELECT 2024,'Q1','Jan','East','Alpha','A-200',72000,20
+  UNION ALL SELECT 2024,'Q1','Jan','West','Alpha','A-100',65000,18
+  UNION ALL SELECT 2024,'Q1','Jan','West','Beta','B-100',45000,15
+  UNION ALL SELECT 2024,'Q1','Jan','East','Beta','B-100',38000,12
+  UNION ALL SELECT 2024,'Q1','Feb','East','Alpha','A-100',92000,28
+  UNION ALL SELECT 2024,'Q1','Feb','West','Alpha','A-100',71000,22
+  UNION ALL SELECT 2024,'Q1','Feb','East','Beta','B-200',48000,16
+  UNION ALL SELECT 2024,'Q1','Mar','East','Alpha','A-100',98000,30
+  UNION ALL SELECT 2024,'Q1','Mar','West','Beta','B-100',44000,14
+  UNION ALL SELECT 2024,'Q2','Apr','East','Alpha','A-100',88000,26
+  UNION ALL SELECT 2024,'Q2','Apr','West','Alpha','A-200',68000,21
+  UNION ALL SELECT 2024,'Q2','May','East','Alpha','A-100',105000,32
+  UNION ALL SELECT 2024,'Q2','May','West','Beta','B-200',46000,15
+  UNION ALL SELECT 2024,'Q2','Jun','East','Beta','B-100',55000,18
+  UNION ALL SELECT 2024,'Q2','Jun','West','Alpha','A-100',82000,25
+  UNION ALL SELECT 2024,'Q3','Jul','East','Alpha','A-100',95000,27
+  UNION ALL SELECT 2024,'Q3','Aug','West','Beta','B-100',42000,13
+  UNION ALL SELECT 2024,'Q3','Sep','East','Alpha','A-200',78000,23
+  UNION ALL SELECT 2024,'Q4','Oct','West','Alpha','A-100',110000,33
+  UNION ALL SELECT 2024,'Q4','Nov','East','Beta','B-200',52000,17
+  UNION ALL SELECT 2024,'Q4','Dec','East','Alpha','A-100',125000,38
+  UNION ALL SELECT 2025,'Q1','Jan','East','Alpha','A-100',95000,28
+  UNION ALL SELECT 2025,'Q1','Feb','West','Alpha','A-200',78000,24
+  UNION ALL SELECT 2025,'Q1','Mar','East','Beta','B-100',52000,16
+  UNION ALL SELECT 2025,'Q2','Apr','West','Alpha','A-100',88000,27
+  UNION ALL SELECT 2025,'Q2','May','East','Alpha','A-100',115000,35
+  UNION ALL SELECT 2025,'Q2','Jun','East','Beta','B-200',58000,19
+) t""",
+     "disaggregated": False,
+     "native": {"widgetType": "pivot",
+                "encodings": {"rows": [{"fieldName": "year"},
+                                       {"fieldName": "quarter"},
+                                       {"fieldName": "month"},
+                                       {"fieldName": "region"},
+                                       {"fieldName": "product"},
+                                       {"fieldName": "sku"}],
+                              "columns": [],
+                              "cell": {"type": "multi-cell",
+                                       "fields": [{"fieldName": "sum(revenue)", "cellType": "bar", "displayName": "Revenue",
+                                                    "style": {"type": "color-scale",
+                                                              "backgroundColor": {"scale": {"type": "quantitative",
+                                                                                            "colorRamp": {"mode": "custom-diverging",
+                                                                                                          "colors": {"start": "#FFF3E0", "mid": "#FF9E1B", "end": "#E65100"}}}}}},
+                                                   {"fieldName": "sum(deals)", "cellType": "text", "displayName": "Deals"}]}}},
+     "query_fields": [_n("year"), _n("quarter"), _n("month"), _n("region"), _n("product"), _n("sku"),
+                      _n("sum(revenue)", "SUM(`revenue`)"), _n("sum(deals)", "SUM(`deals`)")]},
+
     # --- forecast-line (v1): temporal x, y.original measure (auto-forecasts ahead) ---
     {"id": "n_forecast", "title": "Forecast Line — CO₂ Concentration", "w": 3,
      "sql": f"SELECT to_date(Date) AS date, CO2 AS co2 FROM {T}.co2_concentration WHERE Date IS NOT NULL ORDER BY date",
@@ -248,4 +302,155 @@ CHARTS = [
                 "encodings": {"x": {"fieldName": "date", "scale": {"type": "temporal"}},
                               "y": {"original": {"fieldName": "sum(co2)"}, "scale": {"type": "quantitative"}}}},
      "query_fields": [_n("date"), _n("sum(co2)", "SUM(`co2`)")]},
+
+    # ═══════════════════════════════════════════════════════════════════
+    # ADDITIONAL VARIANTS — cover every feature customers ask about
+    # ═══════════════════════════════════════════════════════════════════
+
+    # --- counter with conditional formatting (green/red threshold) ---
+    {"id": "n_counter_styled", "title": "Counter — Revenue vs Target (Conditional Color)", "w": 3, "h": 3,
+     "sql": f"SELECT SUM(Worldwide_Gross) AS revenue FROM {T}.movies WHERE Worldwide_Gross IS NOT NULL",
+     "native": {"widgetType": "counter",
+                "encodings": {"value": {"fieldName": "revenue", "displayName": "Total Worldwide Gross",
+                                        "style": {"rules": [{"condition": {"operator": ">=",
+                                                                           "operand": {"type": "data-value", "value": "1000000000"}},
+                                                              "color": "#00A972"},
+                                                             {"condition": {"operator": "<",
+                                                                           "operand": {"type": "data-value", "value": "1000000000"}},
+                                                              "color": "#FF3621"}]}}}},
+     "query_fields": [_n("revenue", "SUM(`revenue`)")]},
+
+    # --- counter with target comparison ---
+    {"id": "n_counter_target", "title": "Counter — Avg MPG vs 30 Target", "w": 3, "h": 3,
+     "sql": f"SELECT ROUND(AVG(Miles_per_Gallon),1) AS avg_mpg, 30.0 AS target FROM {T}.cars WHERE Miles_per_Gallon IS NOT NULL",
+     "native": {"widgetType": "counter",
+                "encodings": {"value": {"fieldName": "avg_mpg", "displayName": "Avg MPG"},
+                              "target": {"fieldName": "target", "displayName": "Target"}}},
+     "query_fields": [_n("avg_mpg"), _n("target")]},
+
+    # --- horizontal bar ---
+    {"id": "n_bar_horizontal", "title": "Horizontal Bar — Film Count by Genre", "w": 3, "h": 6,
+     "sql": f"SELECT Major_Genre AS genre, COUNT(*) AS n FROM {T}.movies WHERE Major_Genre IS NOT NULL AND Major_Genre <> '' GROUP BY Major_Genre ORDER BY n DESC LIMIT 10",
+     "disaggregated": False,
+     "native": {"widgetType": "bar",
+                "encodings": {"x": {"fieldName": "sum(n)", "scale": {"type": "quantitative"}, "displayName": "Films"},
+                              "y": {"fieldName": "genre", "scale": {"type": "categorical", "sort": {"by": "x-reversed"}}, "displayName": "Genre"}}},
+     "query_fields": [_n("genre"), _n("sum(n)", "SUM(`n`)")]},
+
+    # --- grouped bar ---
+    {"id": "n_bar_grouped", "title": "Grouped Bar — Avg MPG by Origin × Cylinders", "w": 3, "h": 6,
+     "sql": f"SELECT Origin AS origin, CAST(Cylinders AS STRING) AS cylinders, ROUND(AVG(Miles_per_Gallon),1) AS avg_mpg FROM {T}.cars WHERE Miles_per_Gallon IS NOT NULL AND Cylinders IN (4,6,8) GROUP BY Origin, Cylinders",
+     "disaggregated": False,
+     "native": {"widgetType": "bar",
+                "encodings": {"x": {"fieldName": "cylinders", "scale": {"type": "categorical"}, "displayName": "Cylinders"},
+                              "y": {"fieldName": "sum(avg_mpg)", "scale": {"type": "quantitative"}, "displayName": "Avg MPG"},
+                              "color": {"fieldName": "origin", "scale": {"type": "categorical"}, "displayName": "Origin"}},
+                "mark": {"layout": "group"}},
+     "query_fields": [_n("cylinders"), _n("origin"), _n("sum(avg_mpg)", "SUM(`avg_mpg`)")]},
+
+    # --- line with points ---
+    {"id": "n_line_points", "title": "Line with Points — Monthly Precipitation", "w": 3, "h": 6,
+     "sql": f"SELECT month(to_date(date)) AS month_num, ROUND(AVG(precipitation),2) AS avg_precip FROM {T}.seattle_weather GROUP BY month(to_date(date)) ORDER BY month_num",
+     "disaggregated": False,
+     "native": {"widgetType": "line",
+                "encodings": {"x": {"fieldName": "month_num", "scale": {"type": "quantitative"}, "displayName": "Month"},
+                              "y": {"fieldName": "sum(avg_precip)", "scale": {"type": "quantitative"}, "displayName": "Avg Precipitation"}},
+                "mark": {"showPoints": True}},
+     "query_fields": [_n("month_num"), _n("sum(avg_precip)", "SUM(`avg_precip`)")]},
+
+    # --- donut (pie with inner radius) ---
+    {"id": "n_donut", "title": "Donut — Weather Type Distribution", "w": 3, "h": 6,
+     "sql": f"SELECT weather, COUNT(*) AS n FROM {T}.seattle_weather GROUP BY weather",
+     "disaggregated": False,
+     "native": {"widgetType": "pie",
+                "encodings": {"angle": {"fieldName": "sum(n)", "scale": {"type": "quantitative"}, "displayName": "Days"},
+                              "color": {"fieldName": "weather", "scale": {"type": "categorical"}, "displayName": "Weather"}},
+                "mark": {"innerRadius": 60}},
+     "query_fields": [_n("weather"), _n("sum(n)", "SUM(`n`)")]},
+
+    # --- formatted table with number formats, alignment, row numbers ---
+    {"id": "n_table_formatted", "title": "Formatted Table — Car Stats by Origin", "w": 6, "h": 6,
+     "sql": f"SELECT Origin AS origin, COUNT(*) AS count, ROUND(AVG(Miles_per_Gallon),1) AS avg_mpg, ROUND(AVG(Horsepower),0) AS avg_hp, ROUND(AVG(Weight_in_lbs),0) AS avg_weight FROM {T}.cars WHERE Miles_per_Gallon IS NOT NULL GROUP BY Origin ORDER BY avg_mpg DESC",
+     "disaggregated": False,
+     "native": {"widgetType": "table",
+                "encodings": {"columns": [
+                    {"fieldName": "origin", "type": "string", "displayAs": "string", "displayName": "Origin", "title": "origin", "visible": True, "order": 100000},
+                    {"fieldName": "sum(count)", "type": "integer", "displayAs": "number", "displayName": "Cars", "title": "count", "visible": True, "order": 100001, "numberFormat": "#,##0", "alignContent": "right"},
+                    {"fieldName": "sum(avg_mpg)", "type": "number", "displayAs": "number", "displayName": "Avg MPG", "title": "avg_mpg", "visible": True, "order": 100002, "numberFormat": "#,##0.0", "alignContent": "right"},
+                    {"fieldName": "sum(avg_hp)", "type": "integer", "displayAs": "number", "displayName": "Avg HP", "title": "avg_hp", "visible": True, "order": 100003, "numberFormat": "#,##0", "alignContent": "right"},
+                    {"fieldName": "sum(avg_weight)", "type": "integer", "displayAs": "number", "displayName": "Avg Weight (lbs)", "title": "avg_weight", "visible": True, "order": 100004, "numberFormat": "#,##0", "alignContent": "right"}]},
+                "condensed": True, "withRowNumber": True},
+     "query_fields": [_n("origin"), _n("sum(count)", "SUM(`count`)"), _n("sum(avg_mpg)", "SUM(`avg_mpg`)"), _n("sum(avg_hp)", "SUM(`avg_hp`)"), _n("sum(avg_weight)", "SUM(`avg_weight`)")]},
+
+    # --- pivot with COLUMN hierarchy + displayTotal ---
+    {"id": "n_pivot_colhier", "title": "Pivot — Revenue by Region with Year > Quarter Columns", "w": 6, "h": 8,
+     "sql": """SELECT region, CAST(year AS STRING) AS year, quarter,
+  CAST(revenue AS DOUBLE) AS revenue
+FROM (
+  SELECT 'East' as region, 2024 as year, 'Q1' as quarter, 515000 as revenue
+  UNION ALL SELECT 'East', 2024, 'Q2', 600000
+  UNION ALL SELECT 'East', 2024, 'Q3', 580000
+  UNION ALL SELECT 'East', 2024, 'Q4', 735000
+  UNION ALL SELECT 'West', 2024, 'Q1', 420000
+  UNION ALL SELECT 'West', 2024, 'Q2', 510000
+  UNION ALL SELECT 'West', 2024, 'Q3', 470000
+  UNION ALL SELECT 'West', 2024, 'Q4', 620000
+  UNION ALL SELECT 'East', 2025, 'Q1', 595000
+  UNION ALL SELECT 'East', 2025, 'Q2', 685000
+  UNION ALL SELECT 'West', 2025, 'Q1', 480000
+  UNION ALL SELECT 'West', 2025, 'Q2', 560000
+) t""",
+     "disaggregated": False,
+     "native": {"widgetType": "pivot",
+                "encodings": {"rows": [{"fieldName": "region", "displayName": "Region"}],
+                              "columns": [{"fieldName": "year", "displayTotal": True, "displayName": "Year"},
+                                          {"fieldName": "quarter", "displayTotal": True, "displayName": "Quarter"}],
+                              "cell": {"type": "single-cell", "fieldName": "sum(revenue)", "cellType": "bar", "displayName": "Revenue",
+                                       "style": {"type": "color-scale",
+                                                 "backgroundColor": {"scale": {"type": "quantitative",
+                                                                               "colorRamp": {"mode": "custom-diverging",
+                                                                                             "colors": {"start": "#E8F5E9", "mid": "#66BB6A", "end": "#1B5E20"}}}}}}}},
+     "query_fields": [_n("region"), _n("year"), _n("quarter"), _n("sum(revenue)", "SUM(`revenue`)")]},
+
+    # --- filter-single-select ---
+    {"id": "n_filter_single", "title": "Filter — Single Select (Origin)", "w": 2, "h": 1,
+     "sql": f"SELECT DISTINCT Origin AS origin FROM {T}.cars WHERE Origin IS NOT NULL ORDER BY Origin",
+     "native": {"widgetType": "filter-single-select",
+                "encodings": {"fields": [{"fieldName": "origin", "displayName": "Origin"}]}},
+     "query_fields": [_n("origin")]},
+
+    # --- filter-multi-select ---
+    {"id": "n_filter_multi", "title": "Filter — Multi Select (Cylinders)", "w": 2, "h": 1,
+     "sql": f"SELECT DISTINCT CAST(Cylinders AS STRING) AS cylinders FROM {T}.cars WHERE Cylinders IS NOT NULL ORDER BY cylinders",
+     "native": {"widgetType": "filter-multi-select",
+                "encodings": {"fields": [{"fieldName": "cylinders", "displayName": "Cylinders"}]}},
+     "query_fields": [_n("cylinders")]},
+
+    # --- filter-date-range-picker ---
+    {"id": "n_filter_date", "title": "Filter — Date Range Picker", "w": 2, "h": 1,
+     "sql": f"SELECT to_date(date) AS date FROM {T}.seattle_weather WHERE date IS NOT NULL",
+     "native": {"widgetType": "filter-date-range-picker",
+                "encodings": {"fields": [{"fieldName": "date", "displayName": "Date Range"}]}},
+     "query_fields": [_n("date")]},
+
+    # --- normalized/100% stacked area ---
+    {"id": "n_area_normalized", "title": "Normalized Area — Weather Share by Month", "w": 3, "h": 6,
+     "sql": f"SELECT month(to_date(date)) AS month_num, weather, COUNT(*) AS n FROM {T}.seattle_weather GROUP BY month(to_date(date)), weather",
+     "disaggregated": False,
+     "native": {"widgetType": "area",
+                "encodings": {"x": {"fieldName": "month_num", "scale": {"type": "quantitative"}, "displayName": "Month"},
+                              "y": {"fieldName": "sum(n)", "scale": {"type": "quantitative"}, "displayName": "Days"},
+                              "color": {"fieldName": "weather", "scale": {"type": "categorical"}, "displayName": "Weather"}},
+                "mark": {"stacking": "normalize"}},
+     "query_fields": [_n("month_num"), _n("weather"), _n("sum(n)", "SUM(`n`)")]},
+
+    # --- scatter with size + color ---
+    {"id": "n_scatter_bubble", "title": "Bubble Scatter — HP vs MPG, Size=Weight, Color=Origin", "w": 3, "h": 6,
+     "sql": f"SELECT Horsepower AS hp, Miles_per_Gallon AS mpg, Weight_in_lbs AS weight, Origin AS origin FROM {T}.cars WHERE Horsepower IS NOT NULL AND Miles_per_Gallon IS NOT NULL",
+     "native": {"widgetType": "scatter",
+                "encodings": {"x": {"fieldName": "hp", "scale": {"type": "quantitative"}, "displayName": "Horsepower"},
+                              "y": {"fieldName": "mpg", "scale": {"type": "quantitative"}, "displayName": "Miles per Gallon"},
+                              "size": {"fieldName": "weight", "scale": {"type": "quantitative"}, "displayName": "Weight (lbs)"},
+                              "color": {"fieldName": "origin", "scale": {"type": "categorical"}, "displayName": "Origin"}}},
+     "query_fields": [_n("hp"), _n("mpg"), _n("weight"), _n("origin")]},
 ]
