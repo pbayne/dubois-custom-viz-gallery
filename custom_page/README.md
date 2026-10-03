@@ -16,6 +16,32 @@ governed AI/BI dashboard (one `.lvdash` spec; versions / publishes / shares like
 |------|-------------|
 | `build_custom_page.py` | Self-contained build + deploy. Embeds the full React/D3 source and the 14-section tile registry; creates + publishes the dashboard. |
 | `deploy_custom_page.py` | Tiny vendored Lakeview REST helper (`custom_page_widget`, `deploy`) — no external dependencies beyond the Databricks CLI. |
+| `examples/example_live_data.py` | **D3 bound to LIVE Unity Catalog data** (not synthetic) — see below. |
+
+## Example: D3 on live, governed data
+
+The 178-tile gallery uses synthetic data to showcase D3 *technique*. The real payoff of a
+custom page (vs. a standalone D3 app) is rendering D3 — and native widgets — from **live,
+UC-governed SQL queries**. `examples/example_live_data.py` demonstrates it against the
+built-in `samples.bakehouse` catalog:
+
+- `viz.Value` → a KPI bound to `SUM(totalPrice)`
+- `viz.CustomWidget` → a D3 bar chart drawn from a "revenue by product" query
+
+```bash
+cd custom_page/examples
+python3 example_live_data.py --profile <cli-profile> --warehouse <id>
+```
+
+Verified rendering on `fe-vm-leaps-fe` (Oct 2026): KPI = **66,471**; bars labeled with the real
+top products (Golden Gate Ginger, Outback Oatmeal, …).
+
+> **Gotcha worth knowing:** `viz.CustomWidget` **requires a `schema` prop**
+> (`schema:{fields:[{name,type},…]}`). Omit it and the whole page crashes with *"Custom Page
+> sandbox failed to render … Cannot convert undefined or null to object."* `viz.Value` needs
+> no schema. Query rows arrive at `render(config, data)` as `data.main.rows` (array-of-arrays,
+> column order). The dashboard carries the SQL as `datasets`; a `datasetMap` maps an alias →
+> datasetId, and each `viz.*` query references the alias via `datasetName`.
 
 ## The 178 tiles — 14 sections
 

@@ -100,9 +100,11 @@ def _layout(widgets):
 
 
 def deploy(display_name, pages, profile, warehouse, parent_path=None,
-           publish=True, theme=None):
+           publish=True, theme=None, datasets=None):
     """Create (or idempotently update) a Lakeview dashboard and publish it.
-    `theme` may be a uiSettings.theme dict, or None for the workspace default."""
+    `theme` may be a uiSettings.theme dict, or None for the workspace default.
+    `datasets` (optional) = [{"name","displayName","queryLines":[sql]}] to bind governed
+    SQL datasets (query inside the page via datasetMap alias + viz.* queries)."""
     if "/" in display_name:
         raise SystemExit("display_name cannot contain '/'")
     parent_path = parent_path or f"/Users/{_current_user(profile)}"
@@ -110,7 +112,7 @@ def deploy(display_name, pages, profile, warehouse, parent_path=None,
            "pageType": "PAGE_TYPE_CANVAS", "layoutVersion": "GRID_V1",
            "layout": _layout(p["widgets"])} for p in pages]
     ui = {"theme": theme, "applyModeEnabled": False} if theme else {}
-    serialized = {"datasets": [], "pages": pg, "uiSettings": ui}
+    serialized = {"datasets": datasets or [], "pages": pg, "uiSettings": ui}
 
     did = _find_existing(display_name, parent_path, profile)
     created = False
