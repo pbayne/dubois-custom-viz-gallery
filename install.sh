@@ -22,7 +22,7 @@ ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC} $1"; }
 fail() { echo -e "${RED}✗ $1${NC}" >&2; exit 1; }
 
-PROFILE=""; WAREHOUSE=""; SCHEMA=""; PARENT_PATH=""; MODE="dark"
+PROFILE=""; WAREHOUSE=""; SCHEMA=""; PARENT_PATH=""; MODE="dark"; WITH_CUSTOM_PAGE="false"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --profile)     PROFILE="$2"; shift 2 ;;
@@ -30,6 +30,7 @@ while [[ $# -gt 0 ]]; do
     --schema)      SCHEMA="$2"; shift 2 ;;
     --parent-path) PARENT_PATH="$2"; shift 2 ;;
     --mode)        MODE="$2"; shift 2 ;;
+    --with-custom-page) WITH_CUSTOM_PAGE="true"; shift ;;
     --help|-h)
       echo "Usage: ./install.sh --profile <cli-profile> [options]"
       echo ""
@@ -39,6 +40,10 @@ while [[ $# -gt 0 ]]; do
       echo "  --schema <catalog.schema> Target schema (auto-detected if omitted)"
       echo "  --parent-path <path>      Workspace folder for dashboards"
       echo "  --mode dark|light         Palette mode (default: dark)"
+      echo "  --with-custom-page        ALSO deploy the 178-tile D3 Custom Page gallery"
+      echo "                            (requires the workspace 'Custom pages in AI/BI"
+      echo "                            dashboards' preview to be enabled; see"
+      echo "                            custom_page/README.md)"
       echo ""
       echo "Prerequisites:"
       echo "  1. Databricks CLI v0.2xx+ installed and authenticated"
@@ -219,6 +224,17 @@ echo "==> [4/4] building + publishing 3 dashboards (228 charts)"
 python3 "${ROOT}/build/build_dashboard.py" \
   --profile "${PROFILE}" --warehouse "${WAREHOUSE}" --schema "${SCHEMA}" \
   --parent-path "${PARENT_PATH}" --mode "${MODE}" --ids-file "${IDS_FILE}"
+
+# ── Step 5 (optional): Du Bois D3 Custom Page gallery ──────────────
+if [[ "$WITH_CUSTOM_PAGE" == "true" ]]; then
+  echo ""
+  echo "==> [5] deploying Du Bois D3 Custom Page gallery (178 D3 tiles, one custom page)"
+  warn "requires the workspace preview 'Custom pages in AI/BI dashboards' to be ENABLED"
+  warn "(see custom_page/README.md) — the page renders blank otherwise"
+  python3 "${ROOT}/custom_page/build_custom_page.py" \
+    --profile "${PROFILE}" --warehouse "${WAREHOUSE}" --parent-path "${PARENT_PATH}"
+  ok "custom page deployed"
+fi
 
 echo ""
 ok "Done! Dashboard IDs tracked in ${IDS_FILE}"

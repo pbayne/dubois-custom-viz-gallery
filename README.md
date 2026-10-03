@@ -49,6 +49,27 @@ different palettes:
 | `data_generation/` | Notebook that generates canonical Vega datasets into Unity Catalog, plus a script that builds GeoJSON geometry tables for choropleths. |
 | `install.sh` | One-command installer: generates data, builds geometry, creates + publishes all three dashboards. |
 | `docs/` | Architecture notes and screenshots. |
+| `custom_page/` | **Bonus: the Du Bois D3 Gallery** — 178 D3 visualizations (charts, interactions, animations, generative-art simulations) in a *single* AI/BI **Custom Page** (React + D3). See `custom_page/README.md`. |
+
+## The Du Bois D3 Custom Page (bonus)
+
+Alongside the Vega-Lite dashboards, the repo ships a **178-tile D3 gallery rendered as one
+AI/BI [Custom Page](https://docs.databricks.com/aws/en/dashboards/)** — author-written
+React + D3 with real interactivity and live animation (hover, zoom, drag, bar-chart races,
+force graphs) plus a 32-piece **Generative art & simulation** section (Fourier epicycles,
+boids, Conway's Game of Life, reaction-diffusion, Mandelbrot/Julia, Barnsley fern, Perlin
+terrain, Hilbert curve, strange attractors, …). It's self-contained (no data generation).
+
+Deploy it on top of the main install:
+
+```bash
+./install.sh --profile <cli-profile> --with-custom-page
+```
+
+or standalone: `cd custom_page && python3 build_custom_page.py --profile <p> --warehouse <id>`.
+
+> **Requires** the workspace preview **"Custom pages in AI/BI dashboards"** to be enabled
+> (Private Preview) — the page renders blank otherwise. Details in `custom_page/README.md`.
 
 ## The dashboards
 
