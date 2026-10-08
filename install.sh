@@ -215,15 +215,29 @@ print("\n".join(out))
         if [[ $_i -eq 1 ]]; then echo "    ${_i}) ${_c}   [default]"; else echo "    ${_i}) ${_c}"; fi
         _i=$((_i+1))
       done
-      printf "  Pick a catalog [1-%s], or Enter for default (%s): " "${#CANDIDATES[@]}" "${CANDIDATES[0]}"
+      echo "    0) other — type a catalog name not listed above"
+      printf "  Pick a catalog [1-%s / 0], a name, or Enter for default (%s): " "${#CANDIDATES[@]}" "${CANDIDATES[0]}"
       read -r _choice </dev/tty || _choice=""
       if [[ -n "$_choice" ]]; then
-        if [[ "$_choice" =~ ^[0-9]+$ ]] && [[ "$_choice" -ge 1 ]] && [[ "$_choice" -le ${#CANDIDATES[@]} ]]; then
+        if [[ "$_choice" == "0" ]]; then
+          printf "  Catalog name: "
+          read -r _typed </dev/tty || _typed=""
+          if [[ -n "$_typed" ]]; then
+            CANDIDATES=( "$_typed" )        # pin typed name (verified at create below)
+            ok "catalog: ${_typed} (typed — will verify I can create a schema in it)"
+          else
+            warn "no name entered — using default ${CANDIDATES[0]}"
+          fi
+        elif [[ "$_choice" =~ ^[0-9]+$ ]] && [[ "$_choice" -ge 1 ]] && [[ "$_choice" -le ${#CANDIDATES[@]} ]]; then
           _sel="${CANDIDATES[$((_choice-1))]}"
           CANDIDATES=( "$_sel" )          # pin the chosen one (still verified at create)
           ok "catalog: ${_sel} (you chose it)"
-        else
+        elif [[ "$_choice" =~ ^[0-9]+$ ]]; then
           warn "'$_choice' isn't a listed option — using default ${CANDIDATES[0]}"
+        else
+          # Non-numeric input = treat as a typed catalog name directly.
+          CANDIDATES=( "$_choice" )
+          ok "catalog: ${_choice} (typed — will verify I can create a schema in it)"
         fi
       fi
     else
