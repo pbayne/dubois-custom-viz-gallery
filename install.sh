@@ -162,7 +162,30 @@ print("\n".join(out))
     • Pass --schema <catalog>.<schema> for a catalog you have access to"
   fi
   if [[ ${#CANDIDATES[@]} -gt 1 ]]; then
-    ok "catalog candidates (best first): ${CANDIDATES[*]} — will use the first I can write to; pass --schema <catalog>.<schema> to pin one"
+    # Interactive pick when we have a terminal; otherwise keep the auto
+    # fall-through (CI / piped runs stay non-interactive and still work).
+    if [[ -t 0 ]]; then
+      echo ""
+      echo "  Multiple catalogs you can target (best first):"
+      _i=1
+      for _c in "${CANDIDATES[@]}"; do
+        if [[ $_i -eq 1 ]]; then echo "    ${_i}) ${_c}   [default]"; else echo "    ${_i}) ${_c}"; fi
+        _i=$((_i+1))
+      done
+      printf "  Pick a catalog [1-%s], or Enter for default (%s): " "${#CANDIDATES[@]}" "${CANDIDATES[0]}"
+      read -r _choice </dev/tty || _choice=""
+      if [[ -n "$_choice" ]]; then
+        if [[ "$_choice" =~ ^[0-9]+$ ]] && [[ "$_choice" -ge 1 ]] && [[ "$_choice" -le ${#CANDIDATES[@]} ]]; then
+          _sel="${CANDIDATES[$((_choice-1))]}"
+          CANDIDATES=( "$_sel" )          # pin the chosen one (still verified at create)
+          ok "catalog: ${_sel} (you chose it)"
+        else
+          warn "'$_choice' isn't a listed option — using default ${CANDIDATES[0]}"
+        fi
+      fi
+    else
+      ok "catalog candidates (best first): ${CANDIDATES[*]} — will use the first I can write to; pass --schema <catalog>.<schema> to pin one"
+    fi
   fi
 fi
 
@@ -190,6 +213,10 @@ if [[ -z "$SCHEMA" ]]; then
     • Ask your workspace admin: GRANT CREATE SCHEMA ON CATALOG <catalog> TO \`${ME:-your@email}\`
     • Pass --schema <catalog>.<schema> for a catalog you own"
 fi
+
+# Derive catalog + schema parts from the resolved schema (used by later steps).
+CATALOG="${SCHEMA%%.*}"
+SCHEMA_ONLY="${SCHEMA#*.}"
 
 export VEGA_SCHEMA="$SCHEMA"
 
@@ -263,6 +290,18 @@ python3 "${ROOT}/build/build_dashboard.py" \
   --parent-path "${PARENT_PATH}" --mode "${MODE}" --ids-file "${IDS_FILE}"
 
 # ── Step 5 (optional): Du Bois D3 Custom Page gallery ──────────────
+# Offer it interactively if not already requested via --with-custom-page.
+if [[ "$WITH_CUSTOM_PAGE" != "true" && -t 0 ]]; then
+  echo ""
+  echo "  Also deploy the Du Bois D3 Custom Page gallery?"
+  echo "    • 178 interactive D3 tiles (incl. generative art & simulations) in one custom page"
+  echo "    • CAVEAT: needs the workspace preview 'Custom pages in AI/BI dashboards' ENABLED,"
+  echo "      otherwise the page renders blank / shows raw code (see custom_page/README.md)"
+  printf "  Deploy it? [y/N]: "
+  read -r _cp </dev/tty || _cp=""
+  [[ "$_cp" =~ ^[Yy]$ ]] && WITH_CUSTOM_PAGE="true"
+fi
+
 if [[ "$WITH_CUSTOM_PAGE" == "true" ]]; then
   echo ""
   echo "==> [5] deploying Du Bois D3 Custom Page gallery (178 D3 tiles, one custom page)"
