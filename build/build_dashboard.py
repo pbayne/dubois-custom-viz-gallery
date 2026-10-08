@@ -281,17 +281,24 @@ def main():
         print(f"[{name}] {total} charts / {len(serialized['datasets'])} datasets / {len(serialized['pages'])} tabs")
         did = ids.get(name)
         cur = api_soft("get", f"/api/2.0/lakeview/dashboards/{did}", a.profile) if did else None
-        if not (did and cur and "etag" in cur) and not a.fresh:
-            # no valid tracked id -> adopt an existing same-named dashboard in this
-            # folder (idempotent re-deploy without the ids file / from a new machine)
+        # A tracked id is only usable if the dashboard still EXISTS and is ACTIVE.
+        # A TRASHED (deleted) dashboard still returns an etag from GET, so checking
+        # etag alone isn't enough — PATCHing a trashed dashboard fails with
+        # "lifecycle state [TRASHED] is not among the accepted states [ACTIVE]".
+        def _usable(c):
+            return bool(c and "etag" in c and c.get("lifecycle_state", "ACTIVE") == "ACTIVE")
+        if not (did and _usable(cur)) and not a.fresh:
+            # no valid tracked id (or it was trashed) -> adopt an existing ACTIVE
+            # same-named dashboard in this folder (idempotent re-deploy without the
+            # ids file / from a new machine / after the old one was deleted)
             did = find_existing(name, parent_path, a.profile)
             cur = api_soft("get", f"/api/2.0/lakeview/dashboards/{did}", a.profile) if did else None
-        if did and cur and "etag" in cur:      # exists in THIS workspace -> update
+        if did and _usable(cur):                 # exists & ACTIVE in THIS workspace -> update
             r = api("patch", f"/api/2.0/lakeview/dashboards/{did}", a.profile,
                     {"serialized_dashboard": json.dumps(serialized), "etag": cur["etag"],
                      "display_name": name, "warehouse_id": a.warehouse})
             print(f"  updated {did}")
-        else:                                   # not tracked / not found here -> create
+        else:                                    # not tracked / trashed / not found here -> create
             r = api("post", "/api/2.0/lakeview/dashboards", a.profile,
                     {"display_name": name, "serialized_dashboard": json.dumps(serialized),
                      "parent_path": parent_path, "warehouse_id": a.warehouse})
