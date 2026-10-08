@@ -108,45 +108,86 @@ else
   Ask your workspace admin to grant access, or pass --warehouse <id> for one you can use."
 fi
 
-# Auto-detect catalog if schema not provided
-if [[ -z "$SCHEMA" ]]; then
-  AUTO_CATALOG="$(databricks api get /api/2.1/unity-catalog/catalogs -p "$PROFILE" 2>/dev/null \
-    | python3 -c '
-import sys, json
+# ── Resolve target schema: either user-specified, or auto-detect a ranked list
+#    of candidate catalogs and try each until CREATE SCHEMA actually succeeds ──
+SCHEMA_NAME="custom_gallery"
+
+if [[ -n "$SCHEMA" ]]; then
+  # User pinned a schema explicitly — honor it exactly, no fallback.
+  CANDIDATES=( "${SCHEMA%%.*}" )
+  SCHEMA_NAME="${SCHEMA#*.}"
+  ok "schema: ${SCHEMA} (user-specified)"
+else
+  # Auto-detect. Build a RANKED, DETERMINISTIC list of candidate catalogs the
+  # user is most likely able to CREATE SCHEMA in, best first. The old code took
+  # the first managed catalog in arbitrary API order — often someone else's on a
+  # FEVM/shared workspace — and failed hard. Now we rank (owned > looks-like-mine
+  # > any managed; home/scratch/demo names float to the top) and fall THROUGH the
+  # list at create time, so a non-writable top pick doesn't abort the install.
+  ME="$(databricks current-user me -p "$PROFILE" 2>/dev/null \
+    | python3 -c 'import sys,json;print(json.load(sys.stdin).get("userName",""))' 2>/dev/null || echo "")"
+  CANDIDATES=()
+  while IFS= read -r _cat; do
+    [[ -n "$_cat" ]] && CANDIDATES+=( "$_cat" )
+  done < <(databricks api get /api/2.1/unity-catalog/catalogs -p "$PROFILE" 2>/dev/null \
+    | ME="$ME" python3 -c '
+import sys, json, os
+me = os.environ.get("ME", "")
+local = me.split("@")[0].replace(".", "_") if me else ""
 cats = json.loads(sys.stdin.read()).get("catalogs", [])
 managed = [c for c in cats if c.get("catalog_type") == "MANAGED_CATALOG"]
-if managed:
-    print(managed[0]["name"])
-else:
-    print("")
-' 2>/dev/null || echo "")"
-  if [[ -z "$AUTO_CATALOG" ]]; then
+owned = [c for c in managed if c.get("owner") == me]
+named = [c for c in managed if local and local in c.get("name", "").lower().replace(".", "_")]
+# tier 1: catalogs I own; tier 2: look like mine by name; tier 3: any managed.
+# keep tier order but rank WITHIN by scratch/home/demo-ness, then alphabetical.
+def score(c):
+    n = c.get("name", "").lower()
+    s = 0
+    if n.startswith(("home_", "home-")): s += 100
+    if local and local in n.replace(".", "_"): s += 50
+    if any(k in n for k in ("sandbox","scratch","playground","demo","test","dev")): s += 25
+    return s
+seen, out = set(), []
+for tier in (owned, named, managed):
+    for c in sorted(tier, key=lambda c: (-score(c), c.get("name", ""))):
+        n = c.get("name", "")
+        if n and n not in seen:
+            seen.add(n); out.append(n)
+print("\n".join(out))
+' 2>/dev/null)
+  if [[ ${#CANDIDATES[@]} -eq 0 ]]; then
     fail "No managed catalogs found.
   Either:
     • Ask your workspace admin to create a catalog and grant you CREATE SCHEMA
     • Pass --schema <catalog>.<schema> for a catalog you have access to"
   fi
-  SCHEMA="${AUTO_CATALOG}.custom_gallery"
-  ok "schema: ${SCHEMA} (auto-detected)"
-else
-  ok "schema: ${SCHEMA} (user-specified)"
+  if [[ ${#CANDIDATES[@]} -gt 1 ]]; then
+    ok "catalog candidates (best first): ${CANDIDATES[*]} — will use the first I can write to; pass --schema <catalog>.<schema> to pin one"
+  fi
 fi
 
-# Test catalog write access by trying to create the schema
-CATALOG="${SCHEMA%%.*}"; SCHEMA_ONLY="${SCHEMA#*.}"
-SCHEMA_CHECK="$(databricks api post /api/2.1/unity-catalog/schemas -p "$PROFILE" \
-  --json "{\"catalog_name\":\"${CATALOG}\",\"name\":\"${SCHEMA_ONLY}\",\"comment\":\"Du Bois Custom-Viz Gallery data\"}" 2>&1 || true)"
-# Success if the schema was created ("name" in JSON) OR already exists. The CLI
-# prints "already exists" as plain-text stderr (not JSON) and exits non-zero,
-# so match on the raw string rather than parsing JSON.
-if echo "$SCHEMA_CHECK" | grep -qiE '"name"|already exists|SCHEMA_ALREADY_EXISTS'; then
-  ok "schema ${SCHEMA} ready"
-else
-  ERR_MSG="$(printf '%s' "$SCHEMA_CHECK" | head -1)"
-  fail "Cannot create schema ${SCHEMA}: ${ERR_MSG}
-  You need CREATE SCHEMA permission on catalog '${CATALOG}'.
-  Either:
-    • Ask your workspace admin: GRANT CREATE SCHEMA ON CATALOG ${CATALOG} TO \`your@email\`
+# Try each candidate catalog in order; stop at the first where the schema is
+# created OR already exists. The CLI prints "already exists" as plain-text
+# stderr with a non-zero exit, so match on the raw string, not JSON.
+SCHEMA=""
+LAST_ERR=""
+for CAT in "${CANDIDATES[@]}"; do
+  RESP="$(databricks api post /api/2.1/unity-catalog/schemas -p "$PROFILE" \
+    --json "{\"catalog_name\":\"${CAT}\",\"name\":\"${SCHEMA_NAME}\",\"comment\":\"Du Bois Custom-Viz Gallery data\"}" 2>&1 || true)"
+  if echo "$RESP" | grep -qiE '"name"|already exists|SCHEMA_ALREADY_EXISTS'; then
+    SCHEMA="${CAT}.${SCHEMA_NAME}"
+    ok "schema ${SCHEMA} ready"
+    break
+  else
+    LAST_ERR="$(printf '%s' "$RESP" | head -1)"
+    [[ ${#CANDIDATES[@]} -gt 1 ]] && warn "can't use ${CAT}.${SCHEMA_NAME} (${LAST_ERR}) — trying next candidate"
+  fi
+done
+if [[ -z "$SCHEMA" ]]; then
+  fail "Could not create schema '${SCHEMA_NAME}' in any candidate catalog (tried: ${CANDIDATES[*]}).
+  Last error: ${LAST_ERR}
+  You need CREATE SCHEMA on a catalog. Either:
+    • Ask your workspace admin: GRANT CREATE SCHEMA ON CATALOG <catalog> TO \`${ME:-your@email}\`
     • Pass --schema <catalog>.<schema> for a catalog you own"
 fi
 
