@@ -399,3 +399,6 @@ _RERUN="./install.sh --profile ${PROFILE} --schema ${SCHEMA} --warehouse ${WAREH
 echo "  To re-run / update later without the prompts, use:"
 echo "    ${_RERUN}"
 echo ""
+echo "  To remove everything this installed (safe dry-run first):"
+echo "    ./uninstall.sh --profile ${PROFILE}"
+echo ""
