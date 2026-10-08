@@ -35,7 +35,8 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: ./install.sh --profile <cli-profile> [options]"
       echo ""
       echo "Options:"
-      echo "  --profile <name>          Databricks CLI profile (REQUIRED)"
+      echo "  --profile <name>          Databricks CLI profile (optional; prompts to"
+      echo "                            pick one, or uses the CLI default, if omitted)"
       echo "  --warehouse <id>          SQL warehouse ID (auto-detected if omitted)"
       echo "  --schema <catalog.schema> Target schema (auto-detected if omitted)"
       echo "  --parent-path <path>      Workspace folder for dashboards"
@@ -59,7 +60,49 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown arg: $1 (try --help)" >&2; exit 2 ;;
   esac
 done
-[[ -z "$PROFILE" ]] && fail "error: --profile is required (try --help)"
+
+# ── Resolve profile when not supplied ──────────────────────────────
+# --profile is optional. If omitted: on a TTY, offer a numbered menu of the
+# profiles configured in ~/.databrickscfg (valid ones first); non-interactively,
+# fall back to the CLI's own default resolution (DEFAULT profile / DATABRICKS_*
+# env vars) by leaving PROFILE empty and letting the first auth check confirm it.
+if [[ -z "$PROFILE" ]]; then
+  if [[ -t 0 ]]; then
+    # Only offer AUTHENTICATED profiles — an expired/invalid one can't deploy
+    # anyway, and the raw list is often 20+ entries of stale junk.
+    PROFILES=()
+    while IFS= read -r _p; do
+      [[ -n "$_p" ]] && PROFILES+=( "$_p" )
+    done < <(databricks auth profiles 2>/dev/null | awk 'NR>1 && $1!="" && $NF=="YES" {print $1}')
+    if [[ ${#PROFILES[@]} -gt 0 ]]; then
+      echo ""
+      echo "  No --profile given. Authenticated CLI profiles:"
+      _i=1
+      for _p in "${PROFILES[@]}"; do echo "    ${_i}) ${_p}"; _i=$((_i+1)); done
+      echo "  (expired profiles hidden — run 'databricks auth login --profile <name>' to add one)"
+      printf "  Pick a profile [1-%s]: " "${#PROFILES[@]}"
+      read -r _pc </dev/tty || _pc=""
+      if [[ "$_pc" =~ ^[0-9]+$ ]] && [[ "$_pc" -ge 1 ]] && [[ "$_pc" -le ${#PROFILES[@]} ]]; then
+        PROFILE="${PROFILES[$((_pc-1))]}"
+        ok "profile: ${PROFILE} (you chose it)"
+      else
+        fail "No valid selection. Re-run with --profile <name> (try --help)."
+      fi
+    else
+      fail "No --profile given and no authenticated profiles found.
+  Run: databricks auth login --profile <name>   (or pass --profile)"
+    fi
+  else
+    # Non-interactive: fall back to the CLI default. 'databricks current-user me'
+    # with no -p uses DEFAULT profile / DATABRICKS_HOST+token env if present.
+    if databricks current-user me &>/dev/null; then
+      PROFILE="DEFAULT"
+      warn "no --profile given; using the CLI default profile/credentials"
+    else
+      fail "error: --profile is required (no CLI default auth found). Try --help."
+    fi
+  fi
+fi
 
 # ── Pre-flight checks ──────────────────────────────────────────────
 echo "==> pre-flight checks..."
