@@ -373,3 +373,11 @@ echo ""
 ok "Done! Dashboard IDs tracked in ${IDS_FILE}"
 echo ""
 echo "  Open your workspace and look for the dashboards in ${PARENT_PATH}"
+echo ""
+# Echo the exact, fully-resolved command so the user can re-run non-interactively
+# (idempotent: updates the same dashboards in place — no prompts, no re-pick).
+_RERUN="./install.sh --profile ${PROFILE} --schema ${SCHEMA} --warehouse ${WAREHOUSE} --mode ${MODE}"
+[[ "$WITH_CUSTOM_PAGE" == "true" ]] && _RERUN="${_RERUN} --with-custom-page"
+echo "  To re-run / update later without the prompts, use:"
+echo "    ${_RERUN}"
+echo ""
