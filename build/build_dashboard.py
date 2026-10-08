@@ -216,7 +216,7 @@ def current_user(profile):
 def host_for(profile):
     """Resolve the real workspace host for a CLI profile.
 
-    The profile NAME is not the hostname (e.g. profile 'logfood' may point at an
+    The profile NAME is not the hostname (e.g. a profile may point at an
     Azure host). Ask the CLI for the actual host so printed URLs are correct on
     AWS, Azure, and GCP workspaces alike.
     """

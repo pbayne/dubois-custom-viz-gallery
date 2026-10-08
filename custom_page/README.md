@@ -33,7 +33,7 @@ cd custom_page/examples
 python3 example_live_data.py --profile <cli-profile> --warehouse <id>
 ```
 
-Verified rendering on `fe-vm-leaps-fe` (Oct 2026): KPI = **66,471**; bars labeled with the real
+Verified rendering (Oct 2026): KPI = **66,471**; bars labeled with the real
 top products (Golden Gate Ginger, Outback Oatmeal, …).
 
 > **Gotcha worth knowing:** `viz.CustomWidget` **requires a `schema` prop**

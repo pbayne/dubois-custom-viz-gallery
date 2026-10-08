@@ -9,7 +9,7 @@ It binds two datasets over `samples.bakehouse.sales_transactions` and renders:
   • viz.Value         -> a KPI bound to SUM(totalPrice)
   • viz.CustomWidget  -> a D3 bar chart drawn from "revenue by product" query rows
 
-Verified rendering on fe-vm-leaps-fe (Oct 2026): KPI = 66,471; bars labeled with the real
+Verified rendering (Oct 2026): KPI = 66,471; bars labeled with the real
 top products (Golden Gate Ginger, Outback Oatmeal, ...).
 
 KEY GOTCHA (learned the hard way): viz.CustomWidget REQUIRES a `schema` prop. Omit it and the
