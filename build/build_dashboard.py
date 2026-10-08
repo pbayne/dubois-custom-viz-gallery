@@ -213,6 +213,24 @@ def current_user(profile):
         return None
 
 
+def host_for(profile):
+    """Resolve the real workspace host for a CLI profile.
+
+    The profile NAME is not the hostname (e.g. profile 'logfood' may point at an
+    Azure host). Ask the CLI for the actual host so printed URLs are correct on
+    AWS, Azure, and GCP workspaces alike.
+    """
+    out = subprocess.run(["databricks", "auth", "env", "--profile", profile],
+                         capture_output=True, text=True)
+    try:
+        env = json.loads(out.stdout).get("env", {})
+        host = env.get("DATABRICKS_HOST", "")
+        return host.rstrip("/") or f"https://{profile}.cloud.databricks.com"
+    except Exception:
+        # last-resort fallback: old hardcoded assumption
+        return f"https://{profile}.cloud.databricks.com"
+
+
 def find_existing(name, parent_path, profile):
     """Return the id of an ACTIVE dashboard named `name` that lives directly in
     `parent_path` (folder-scoped so we never adopt a same-named dashboard from a
@@ -253,6 +271,8 @@ def main():
         parent_path = f"/Users/{u}" if u else "/Users"
     print(f"target schema: {a.schema} | parent path: {parent_path} | ids: {a.ids_file}")
 
+    host = host_for(a.profile)
+
     ids_file = pathlib.Path(a.ids_file)
     ids = {} if a.fresh else (json.loads(ids_file.read_text()) if ids_file.exists() else {})
 
@@ -281,7 +301,7 @@ def main():
         if not a.no_publish:
             api("post", f"/api/2.0/lakeview/dashboards/{did}/published", a.profile,
                 {"embed_credentials": True, "warehouse_id": a.warehouse})
-        print(f"  https://{a.profile}.cloud.databricks.com/dashboardsv3/{did}/published")
+        print(f"  {host}/dashboardsv3/{did}/published")
     ids_file.parent.mkdir(parents=True, exist_ok=True)
     ids_file.write_text(json.dumps(ids, indent=2))
 

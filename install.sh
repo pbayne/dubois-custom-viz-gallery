@@ -135,18 +135,14 @@ fi
 # Test catalog write access by trying to create the schema
 CATALOG="${SCHEMA%%.*}"; SCHEMA_ONLY="${SCHEMA#*.}"
 SCHEMA_CHECK="$(databricks api post /api/2.1/unity-catalog/schemas -p "$PROFILE" \
-  --json "{\"catalog_name\":\"${CATALOG}\",\"name\":\"${SCHEMA_ONLY}\",\"comment\":\"Du Bois Custom-Viz Gallery data\"}" 2>&1 || echo "{}")"
-if echo "$SCHEMA_CHECK" | python3 -c "
-import sys, json
-d = json.loads(sys.stdin.read())
-# Success if schema was created or already exists
-if 'name' in d or 'SCHEMA_ALREADY_EXISTS' in str(d) or 'already exists' in str(d):
-    exit(0)
-exit(1)
-" 2>/dev/null; then
+  --json "{\"catalog_name\":\"${CATALOG}\",\"name\":\"${SCHEMA_ONLY}\",\"comment\":\"Du Bois Custom-Viz Gallery data\"}" 2>&1 || true)"
+# Success if the schema was created ("name" in JSON) OR already exists. The CLI
+# prints "already exists" as plain-text stderr (not JSON) and exits non-zero,
+# so match on the raw string rather than parsing JSON.
+if echo "$SCHEMA_CHECK" | grep -qiE '"name"|already exists|SCHEMA_ALREADY_EXISTS'; then
   ok "schema ${SCHEMA} ready"
 else
-  ERR_MSG="$(echo "$SCHEMA_CHECK" | python3 -c "import sys,json;d=json.loads(sys.stdin.read());print(d.get('message',d.get('error_code','unknown error')))" 2>/dev/null || echo "unknown error")"
+  ERR_MSG="$(printf '%s' "$SCHEMA_CHECK" | head -1)"
   fail "Cannot create schema ${SCHEMA}: ${ERR_MSG}
   You need CREATE SCHEMA permission on catalog '${CATALOG}'.
   Either:
