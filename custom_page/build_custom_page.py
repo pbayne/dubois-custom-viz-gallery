@@ -1150,7 +1150,7 @@ def main():
     ap.add_argument("--profile", required=True, help="Databricks CLI profile")
     ap.add_argument("--warehouse", required=True, help="SQL warehouse id")
     ap.add_argument("--parent-path", default=None, help="Workspace folder (default: your home)")
-    ap.add_argument("--name", default="The Du Bois D3 Gallery", help="Dashboard display name")
+    ap.add_argument("--name", default="Du Bois Custom-Viz Gallery III — D3 Interactive Custom Page (178 Tiles)", help="Dashboard display name")
     a = ap.parse_args()
     did, url = deploy(a.name, [{"name": "dubois", "displayName": "Du Bois D3 Gallery",
                                 "widgets": [custom_page_widget("w_dubois", CODE, w=12, h=120)]}],

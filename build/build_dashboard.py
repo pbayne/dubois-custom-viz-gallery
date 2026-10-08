@@ -39,9 +39,9 @@ TAB_TITLES = {
 # The gallery spans TWO dashboards (each dashboard stores <=100 datasets). Each
 # group is one dashboard with one tab per module.
 GROUPS = [
-    ("Du Bois Custom-Viz Gallery I — Core Charts",
+    ("Du Bois Custom-Viz Gallery I — Core Charts (Vega-Lite)",
      ["bar_column", "line_area", "distributions", "correlation", "part_to_whole", "radial"]),
-    ("Du Bois Custom-Viz Gallery II — Composite, Indicators & Maps",
+    ("Du Bois Custom-Viz Gallery II — Composite, Indicators & Maps (Vega-Lite)",
      ["heatmap_matrix", "ranking", "tables", "indicators", "advanced", "maps", "extreme_viz"]),
     ("Du Bois AI-BI Out-of-the-Box Charts (Native Widgets)",
      ["native_ootb"]),
