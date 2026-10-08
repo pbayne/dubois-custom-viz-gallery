@@ -377,15 +377,36 @@ if [[ "$WITH_CUSTOM_PAGE" != "true" && -t 0 ]]; then
   [[ "$_cp" =~ ^[Yy]$ ]] && WITH_CUSTOM_PAGE="true"
 fi
 
+CUSTOM_PAGE_ID=""
 if [[ "$WITH_CUSTOM_PAGE" == "true" ]]; then
   echo ""
   echo "==> [5] deploying Du Bois D3 Custom Page gallery (178 D3 tiles, one custom page)"
   warn "requires the workspace preview 'Custom pages in AI/BI dashboards' to be ENABLED"
   warn "(see custom_page/README.md) — the page renders blank otherwise"
-  python3 "${ROOT}/custom_page/build_custom_page.py" \
-    --profile "${PROFILE}" --warehouse "${WAREHOUSE}" --parent-path "${PARENT_PATH}"
+  _CP_OUT="$(python3 "${ROOT}/custom_page/build_custom_page.py" \
+    --profile "${PROFILE}" --warehouse "${WAREHOUSE}" --parent-path "${PARENT_PATH}" 2>&1)"
+  echo "$_CP_OUT"
+  # Capture the custom-page dashboard id it printed (DASHBOARD_ID <id>) so
+  # uninstall can find and remove it later.
+  CUSTOM_PAGE_ID="$(printf '%s\n' "$_CP_OUT" | awk '/^DASHBOARD_ID/{print $2; exit}')"
   ok "custom page deployed"
 fi
+
+# ── Record what we created so uninstall.sh can remove exactly these ──
+# (schema, parent path, and the untracked custom-page id). The 3 Vega/native
+# dashboards are already tracked in IDS_FILE by build_dashboard.py.
+STATE_FILE="${HOME}/.dubois-vega-gallery/state-${PROFILE}.json"
+mkdir -p "$(dirname "$STATE_FILE")"
+STATE_FILE="$STATE_FILE" SCHEMA="$SCHEMA" PARENT_PATH="$PARENT_PATH" \
+  CUSTOM_PAGE_ID="$CUSTOM_PAGE_ID" MODE="$MODE" python3 -c '
+import json, os
+json.dump({
+  "schema": os.environ.get("SCHEMA",""),
+  "parent_path": os.environ.get("PARENT_PATH",""),
+  "custom_page_id": os.environ.get("CUSTOM_PAGE_ID",""),
+  "mode": os.environ.get("MODE",""),
+}, open(os.environ["STATE_FILE"], "w"), indent=2)
+' 2>/dev/null || true
 
 echo ""
 ok "Done! Dashboard IDs tracked in ${IDS_FILE}"

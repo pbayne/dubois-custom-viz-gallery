@@ -52,8 +52,31 @@ if ! databricks current-user me -p "$PROFILE" &>/dev/null; then
   fail "Cannot authenticate with profile '$PROFILE'. Run: databricks auth login --profile $PROFILE"
 fi
 USER_EMAIL="$(databricks current-user me -p "$PROFILE" | python3 -c 'import sys,json;print(json.load(sys.stdin)["userName"])')"
-[[ -z "$PARENT_PATH" ]] && PARENT_PATH="/Users/${USER_EMAIL}"
 IDS_FILE="${HOME}/.dubois-vega-gallery/ids-${PROFILE}.json"
+STATE_FILE="${HOME}/.dubois-vega-gallery/state-${PROFILE}.json"
+
+# Read what install.sh recorded (schema, parent path, custom-page id) so the
+# user doesn't have to remember them. Explicit flags override the recorded
+# values. The custom-page dashboard is NOT in the ids file, so this is the only
+# way uninstall learns about it automatically.
+STATE_SCHEMA=""; STATE_PARENT=""; STATE_CP_ID=""
+if [[ -f "$STATE_FILE" ]]; then
+  eval "$(python3 -c '
+import json
+try: s=json.load(open("'"$STATE_FILE"'"))
+except Exception: s={}
+def q(v): return "\x27"+str(v).replace("\x27","")+"\x27"
+print("STATE_SCHEMA="+q(s.get("schema","")))
+print("STATE_PARENT="+q(s.get("parent_path","")))
+print("STATE_CP_ID="+q(s.get("custom_page_id","")))
+' 2>/dev/null)"
+fi
+# Flags win; otherwise fall back to recorded state.
+[[ -z "$PARENT_PATH" && -n "$STATE_PARENT" ]] && PARENT_PATH="$STATE_PARENT"
+[[ -z "$SCHEMA" && -n "$STATE_SCHEMA" ]] && SCHEMA="$STATE_SCHEMA"
+[[ -z "$PARENT_PATH" ]] && PARENT_PATH="/Users/${USER_EMAIL}"
+# The recorded custom-page id is auto-added to the removal set.
+[[ -n "$STATE_CP_ID" ]] && EXTRA_IDS+=( "$STATE_CP_ID" )
 NB_WS_PATH="${PARENT_PATH}/dubois_vega_gallery_datagen"
 
 echo ""
@@ -113,11 +136,13 @@ echo ""
 echo "Data schema:"
 if [[ "$DROP_SCHEMA" == "true" ]]; then
   if [[ -z "$SCHEMA" ]]; then
-    fail "--drop-schema requires --schema <catalog>.<schema> (so we delete exactly the one you mean)"
+    fail "--drop-schema needs a schema. None was recorded for this profile — pass --schema <catalog>.<schema>."
   fi
   echo "    - ${SCHEMA}  (WILL be dropped WITH its tables — destructive)"
+elif [[ -n "$SCHEMA" ]]; then
+  echo "    ${SCHEMA}  (PRESERVED — add --drop-schema to also drop it and its tables)"
 else
-  echo "    (preserved — pass --drop-schema --schema <catalog>.<schema> to also drop data)"
+  echo "    (unknown — preserved; pass --drop-schema --schema <catalog>.<schema> to drop data)"
 fi
 
 # ── Dry run stops here ──
@@ -156,9 +181,12 @@ if [[ "$DROP_SCHEMA" == "true" ]]; then
   fi
 fi
 
-# Clear the local ids file so a future install starts clean.
+# Clear the local tracking files so a future install starts clean.
 if [[ -f "$IDS_FILE" ]]; then
   rm -f "$IDS_FILE" && ok "cleared tracked ids (${IDS_FILE})"
+fi
+if [[ -f "$STATE_FILE" ]]; then
+  rm -f "$STATE_FILE" && ok "cleared recorded state (${STATE_FILE})"
 fi
 
 echo ""
