@@ -310,7 +310,8 @@ RUN_JSON=$(databricks api post /api/2.1/jobs/runs/submit -p "${PROFILE}" --json 
 JSON
 )")
 RUN_ID=$(echo "$RUN_JSON" | python3 -c 'import sys,json;print(json.load(sys.stdin)["run_id"])')
-echo "    run_id=${RUN_ID} — waiting for completion..."
+echo "    run_id=${RUN_ID} — generating data (this usually takes 1–3 min on a cold serverless start)"
+_spin='|/-\'; _si=0; _t0=$(date +%s); _laststate=""
 while true; do
   ST=$(databricks api get "/api/2.1/jobs/runs/get?run_id=${RUN_ID}" -p "${PROFILE}" \
        | python3 -c 'import sys,json;s=json.load(sys.stdin)["state"];print(s.get("life_cycle_state",""),s.get("result_state",""))')
@@ -318,9 +319,12 @@ while true; do
   case "$LC" in
     TERMINATED)
       if [[ "$RS" == "SUCCESS" ]]; then
-        ok "data generation complete"
+        _el=$(( $(date +%s) - _t0 ))
+        [[ -t 1 ]] && printf "\r\033[K"   # clear the progress line (TTY only)
+        ok "data generation complete (${_el}s)"
         break
       else
+        [[ -t 1 ]] && printf "\r\033[K"
         fail "Data generation FAILED (${RS}).
   Common causes:
     • Serverless jobs not enabled — ask your workspace admin
@@ -328,9 +332,23 @@ while true; do
     • Notebook execution error — check run ${RUN_ID} in the Jobs UI"
       fi ;;
     INTERNAL_ERROR|SKIPPED)
+      [[ -t 1 ]] && printf "\r\033[K"
       fail "Data generation ${LC}.
   Check run ${RUN_ID} in the Jobs UI for details." ;;
-    *) sleep 15 ;;
+    *)
+      # live progress. On a TTY: spinner + human state + elapsed, redrawn in
+      # place. Non-TTY (piped/CI/tee): print a plain line only when the state
+      # changes, so logs stay clean (no carriage-return spam).
+      _el=$(( $(date +%s) - _t0 ))
+      _hs="${LC:-STARTING}"
+      case "$LC" in PENDING) _hs="queued (cold start)";; RUNNING) _hs="running notebook";; esac
+      if [[ -t 1 ]]; then
+        _c="${_spin:_si:1}"; _si=$(( (_si+1) % 4 ))
+        printf "\r    %s  %-22s  %3ds elapsed" "$_c" "$_hs" "$_el"
+      elif [[ "$_hs" != "$_laststate" ]]; then
+        echo "    ${_hs} (${_el}s)"; _laststate="$_hs"
+      fi
+      sleep 3 ;;
   esac
 done
 
